@@ -100,6 +100,7 @@ BITCOIN_CORE_H = \
   compat.h \
   compat/sanity.h \
   compressor.h \
+  consensus/consensus.h \
   consensus/params.h \
   primitives/block.h \
   primitives/transaction.h \
@@ -126,6 +127,7 @@ BITCOIN_CORE_H = \
   netbase.h \
   net.h \
   noui.h \
+  policy/policy.h \
   pow.h \
   prevector.h \
   protocol.h \
@@ -193,6 +195,7 @@ libbitcoin_server_a_SOURCES = \
   miner.cpp \
   net.cpp \
   noui.cpp \
+  policy/policy.cpp \
   pow.cpp \
   rest.cpp \
   rpcblockchain.cpp \
@@ -626,7 +629,9 @@ if BUILD_BITCOIN_LIBS
 include_HEADERS = script/bitcoinconsensus.h
 libbitcoinconsensus_la_SOURCES = \
   allocators.cpp \
-  primitives/transaction.cpp \
+  consensus/merkle.cpp \
+  consensus/merkle.h \
+  consensus/params.h \
   crypto/hmac_sha512.cpp \
   crypto/scrypt.cpp \
   crypto/sha1.cpp \
@@ -636,6 +641,7 @@ libbitcoinconsensus_la_SOURCES = \
   eccryptoverify.cpp \
   ecwrapper.cpp \
   hash.cpp \
+  primitives/transaction.cpp \
   pubkey.cpp \
   script/script.cpp \
   script/interpreter.cpp \
