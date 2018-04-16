@@ -19,6 +19,7 @@ static const uint64_t STANDARD_MINIMUM_GAS_LIMIT = 10000;
 //contract executions with a price cheaper than this (in satoshis) are not standard
 //TODO this needs to be controlled by DGP and needs to be propogated from consensus parameters
 static const uint64_t STANDARD_MINIMUM_GAS_PRICE = 1;
+static const bool DEFAULT_ACCEPT_DATACARRIER = true;
 
 class CKeyID;
 class CScript;
@@ -33,6 +34,7 @@ public:
 };
 
 static const unsigned int MAX_OP_RETURN_RELAY = 83; //!< bytes (+1 for OP_RETURN, +2 for the pushdata opcodes)
+extern bool fAcceptDatacarrier;
 extern unsigned nMaxDatacarrierBytes;
 
 /**
