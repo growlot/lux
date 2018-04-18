@@ -42,7 +42,7 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     genesis.nNonce   = nNonce;
     genesis.nVersion = nVersion;
     genesis.vtx.push_back(txNew);
-    genesis.hashPrevBlock.SetNull();
+    genesis.hashPrevBlock = uint256(0);
     genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
     return genesis;
 }
@@ -62,7 +62,7 @@ static void convertSeed6(std::vector<CAddress>& vSeedsOut, const SeedSpec6* data
     for (unsigned int i = 0; i < count; i++) {
         struct in6_addr ip;
         memcpy(&ip, data[i].addr, sizeof(ip));
-        CAddress addr(CService(ip, data[i].port));
+        CAddress addr(CService(ip, data[i].port), NODE_NETWORK);
         addr.nTime = GetTime() - GetRand(nOneWeek) - nOneWeek;
         vSeedsOut.push_back(addr);
     }
@@ -155,14 +155,16 @@ public:
         consensus.powLimit = uint256(0) >> 20; // LUX starting difficulty is 1 / 2^12
         consensus.nPowTargetTimespan = 36 * 60 * 60; // LUX: 1 36hrs
         consensus.nPowTargetSpacing = 2 * 60;  // LUX: 2 minute
-        //consensus.fPowAllowMinDifficultyBlocks = false;
-        //consensus.fPowNoRetargeting = false;
+        consensus.fPowAllowMinDifficultyBlocks = false;
+        consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1026; // 95% of 1080 is 1026
         consensus.nMinerConfirmationWindow = 1080; // nPowTargetTimespan / nPowTargetSpacing
         // Deployment of SegWit (BIP141 and BIP143)
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 0; //TODO: ?
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 0; // Never / undefined
+        consensus.nLastPOWBlock = 6000000;
+
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -176,7 +178,6 @@ public:
         nDefaultPort = /*28666*/ 26868;
         nMaxReorganizationDepth = 100;
         nMinerThreads = 0;
-        nLastPOWBlock = 6000000;
         nMaturity = 79;
         nMasternodeCountDrift = 20;
         nModifierUpdateBlock = 615800;
@@ -185,7 +186,7 @@ public:
 
         consensus.hashGenesisBlock = genesis.GetHash();
 
-        assert(hashGenesisBlock == uint256("0x00000759bb3da130d7c9aedae170da8335f5a0d01a9007e4c8d3ccd08ace6a42"));
+        assert(consensus.hashGenesisBlock == uint256("0x00000759bb3da130d7c9aedae170da8335f5a0d01a9007e4c8d3ccd08ace6a42"));
         assert(genesis.hashMerkleRoot == uint256("0xe08ae0cfc35a1d70e6764f347fdc54355206adeb382446dd54c32cd0201000d3"));
 
         vSeeds.push_back(CDNSSeedData("luxseed1.luxcore.io", "luxseed1.luxcore.io")); // DNSSeed
@@ -207,7 +208,6 @@ public:
 
         fRequireRPCPassword = true;
         fMiningRequiresPeers = true;
-        fAllowMinDifficultyBlocks = false;
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
         fMineBlocksOnDemand = false;
@@ -252,13 +252,14 @@ public:
         consensus.nPowTargetTimespan = 24 * 60 * 60; // LUX: 1 day //TODO: change it for testnet
         consensus.nPowTargetSpacing = 60;  // LUX: 1 minute //TODO: change it for testnet
         consensus.fPowAllowMinDifficultyBlocks = false;
-        //consensus.fPowNoRetargeting = false;
+        consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1368; // 95% of 1440 is
         consensus.nMinerConfirmationWindow = 1440; // nPowTargetTimespan / nPowTargetSpacing
         // Deployment of SegWit (BIP141 and BIP143)
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 0; // Never / undefined
+        consensus.nLastPOWBlock = 6000000;
 
         networkID = CBaseChainParams::TESTNET;
         strNetworkID = "test";
@@ -270,7 +271,7 @@ public:
         nDefaultPort = 28333;
         nMinerThreads = 0;
         nLastPOWBlock = 6000000;
-        nMaturity = 2;
+        nMaturity = 79;
         nModifierUpdateBlock = 51197; //approx Mon, 17 Apr 2017 04:00:00 GMT
 
         //! Modify the testnet genesis block so the timestamp is valid for a later start.
@@ -300,7 +301,6 @@ public:
 
         fRequireRPCPassword = true;
         fMiningRequiresPeers = true;
-        fAllowMinDifficultyBlocks = true;
         fDefaultConsistencyChecks = false;
         fRequireStandard = false;
         fMineBlocksOnDemand = false;
@@ -338,11 +338,11 @@ public:
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
-        consensus.BIP34Height = -1; // BIP34 has not necessarily activated on regtest
-        consensus.BIP34Hash = uint256();
+        //consensus.BIP34Height = -1; // BIP34 has not necessarily activated on regtest
+        //consensus.BIP34Hash = uint256();
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 24 * 60 * 60; // Lux: 1 day
-        consensus.nPowTargetSpacing = 10 * 60;
+        consensus.nPowTargetSpacing = 1 * 60; // Lux: 1 minutes
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
@@ -356,6 +356,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 999999999999ULL;
+        consensus.powLimit = ~uint256(0) >> 1;
 
         pchMessageStart[0] = 0xa1;
         pchMessageStart[1] = 0xcf;
@@ -363,14 +364,11 @@ public:
         pchMessageStart[3] = 0xac;
         nMinerThreads = 1;
         nMaturity = 2;
-        nTargetTimespan = 24 * 60 * 60; // Lux: 1 day
-        nTargetSpacing = 1 * 60;        // Lux: 1 minutes
-        bnProofOfWorkLimit = ~uint256(0) >> 1;
         genesis.nTime = 1454124731;
         genesis.nBits = 0x207fffff;
         genesis.nNonce = 12345;
 
-        hashGenesisBlock = genesis.GetHash();
+        consensus.hashGenesisBlock = genesis.GetHash();
         nDefaultPort = 51476;
 //        assert(hashGenesisBlock == uint256("0"));
 
@@ -379,7 +377,6 @@ public:
 
         fRequireRPCPassword = false;
         fMiningRequiresPeers = false;
-        fAllowMinDifficultyBlocks = true;
         fDefaultConsistencyChecks = true;
         fRequireStandard = false;
         fMineBlocksOnDemand = true;
@@ -409,7 +406,7 @@ public:
         fRequireRPCPassword = false;
         fMiningRequiresPeers = false;
         fDefaultConsistencyChecks = true;
-        fAllowMinDifficultyBlocks = false;
+        consensus.fPowAllowMinDifficultyBlocks = false;
         fMineBlocksOnDemand = true;
     }
 
@@ -420,12 +417,12 @@ public:
     }
 
     //! Published setters to allow changing values in unit test cases
-    virtual void setSubsidyHalvingInterval(int anSubsidyHalvingInterval) { nSubsidyHalvingInterval = anSubsidyHalvingInterval; }
-    /*virtual void setEnforceBlockUpgradeMajority(int anEnforceBlockUpgradeMajority) { nEnforceBlockUpgradeMajority = anEnforceBlockUpgradeMajority; }
-    virtual void setRejectBlockOutdatedMajority(int anRejectBlockOutdatedMajority) { nRejectBlockOutdatedMajority = anRejectBlockOutdatedMajority; }*/
-    virtual void setToCheckBlockUpgradeMajority(int anToCheckBlockUpgradeMajority) { nToCheckBlockUpgradeMajority = anToCheckBlockUpgradeMajority; }
+    virtual void setSubsidyHalvingInterval(int anSubsidyHalvingInterval) { consensus.nSubsidyHalvingInterval = anSubsidyHalvingInterval; }
+    virtual void setEnforceBlockUpgradeMajority(int anEnforceBlockUpgradeMajority) { consensus.nMajorityEnforceBlockUpgrade = anEnforceBlockUpgradeMajority; }
+    virtual void setRejectBlockOutdatedMajority(int anRejectBlockOutdatedMajority) { consensus.nMajorityRejectBlockOutdated = anRejectBlockOutdatedMajority; }
+    virtual void setToCheckBlockUpgradeMajority(int anToCheckBlockUpgradeMajority) { consensus.nMajorityWindow = anToCheckBlockUpgradeMajority; }
     virtual void setDefaultConsistencyChecks(bool afDefaultConsistencyChecks) { fDefaultConsistencyChecks = afDefaultConsistencyChecks; }
-    virtual void setAllowMinDifficultyBlocks(bool afAllowMinDifficultyBlocks) { fAllowMinDifficultyBlocks = afAllowMinDifficultyBlocks; }
+    virtual void setAllowMinDifficultyBlocks(bool afAllowMinDifficultyBlocks) { consensus.fPowAllowMinDifficultyBlocks = afAllowMinDifficultyBlocks; }
     virtual void setSkipProofOfWorkCheck(bool afSkipProofOfWorkCheck) { fSkipProofOfWorkCheck = afSkipProofOfWorkCheck; }
 };
 static CUnitTestParams unitTestParams;
