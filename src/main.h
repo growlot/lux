@@ -28,6 +28,7 @@
 #include "txmempool.h"
 #include "uint256.h"
 #include "undo.h"
+#include "versionbits.h"
 
 #include <algorithm>
 #include <exception>
@@ -717,11 +718,13 @@ extern CCoinsViewCache* pcoinsTip;
 extern CBlockTreeDB* pblocktree;
 
 extern StorageResults *pstorageresult;
+extern VersionBitsCache versionbitscache;
 
 struct CBlockTemplate {
     CBlock block;
     std::vector<CAmount> vTxFees;
     std::vector<int64_t> vTxSigOps;
+    std::vector<unsigned char> vchCoinbaseCommitment;
 };
 
 
