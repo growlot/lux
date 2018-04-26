@@ -139,6 +139,14 @@ static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits
     return CreateGenesisBlock(pszTimestamp, nTime, nNonce, nBits, nVersion);
 }
 
+static Checkpoints::MapCheckpoints mapCheckpointsSegWittest =
+        boost::assign::map_list_of(0, uint256("0"));
+static const Checkpoints::CCheckpointData dataSegwittest = {
+        &mapCheckpointsSegWittest,
+        0,
+        0,
+        0
+};
 
 class CMainParams : public CChainParams
 {
@@ -485,7 +493,7 @@ public:
         nDefaultPort = 25666;
         nMaxReorganizationDepth = 100;
         nMinerThreads = 0;
-        nMaturity = 79;
+        nMaturity = 5;
         nMasternodeCountDrift = 20;
         nModifierUpdateBlock = 615800;
 
@@ -552,7 +560,7 @@ public:
 
     const Checkpoints::CCheckpointData& Checkpoints() const
     {
-        return data;
+        return dataSegwittest;
     }
 };
 static CSegWitTestnet segwitParams;
