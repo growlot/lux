@@ -675,7 +675,7 @@ public:
      */
     unsigned int GetSigOpCount(const CScript& scriptSig) const;
 
-    bool IsNormalPaymentScript() const; //TODO probably should be removed, investigate
+    bool IsNormalPaymentScript() const;
     bool IsPayToScriptHash() const;
     ///////////////////////////////////////////////// // lux
     bool IsPayToPubkey() const;
