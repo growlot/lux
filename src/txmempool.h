@@ -44,11 +44,15 @@ private:
     int64_t nTime;        //! Local time when entering the mempool
     double dPriority;     //! Priority when entering the mempool
     unsigned int nHeight; //! Chain height when entering the mempool
+    int64_t sigOpCost;    //!< Total sigop cost
 
 public:
+    CTxMemPoolEntry(const CTransaction& _tx, const CAmount& _nFee,
+                    int64_t _nTime, double _dPriority, unsigned int _nHeight,
+                    int64_t nSigOpsCost);
     CTxMemPoolEntry(const CTransaction& _tx, const CAmount& _nFee, int64_t _nTime, double _dPriority, unsigned int _nHeight);
-    CTxMemPoolEntry();
     CTxMemPoolEntry(const CTxMemPoolEntry& other);
+    CTxMemPoolEntry();
 
     const CTransaction& GetTx() const { return this->tx; }
     double GetPriority(unsigned int currentHeight) const;
@@ -56,6 +60,7 @@ public:
     size_t GetTxSize() const { return nTxSize; }
     int64_t GetTime() const { return nTime; }
     unsigned int GetHeight() const { return nHeight; }
+    int64_t GetSigOpCost() const { return sigOpCost; }
 };
 
 class CMinerPolicyEstimator;
