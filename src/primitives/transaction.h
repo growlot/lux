@@ -15,6 +15,8 @@
 #include <list>
 
 static const int SERIALIZE_TRANSACTION_WITNESS = 0x40000000;
+static const int WITNESS_SCALE_FACTOR = 4;
+
 
 class CTransaction;
 
@@ -187,15 +189,34 @@ public:
 
     bool IsDust(CFeeRate minRelayTxFee) const
     {
-        // "Dust" is defined in terms of CTransaction::minRelayTxFee, which has units duffs-per-kilobyte.
-        // If you'd pay more than 1/3 in fees to spend something, then we consider it dust.
-        // A typical txout is 34 bytes big, and will need a CTxIn of at least 148 bytes to spend
-        // i.e. total is 148 + 32 = 182 bytes. Default -minrelaytxfee is 10000 duffs per kB
-        // and that means that fee per txout is 182 * 10000 / 1000 = 1820 duffs.
-        // So dust is a txout less than 1820 *3 = 5460 duffs
-        // with default -minrelaytxfee = minRelayTxFee = 10000 duffs per kB.
-        size_t nSize = GetSerializeSize(SER_DISK,0)+148u;
-        return (nValue < 3*minRelayTxFee.GetFee(nSize) && !this->scriptPubKey.HasOpCreate() && !this->scriptPubKey.HasOpCall());
+        // "Dust" is defined in terms of CTransaction::minRelayTxFee,
+        // which has units satoshis-per-kilobyte.
+        // If you'd pay more than 1/3 in fees
+        // to spend something, then we consider it dust.
+        // A typical spendable non-segwit txout is 34 bytes big, and will
+        // need a CTxIn of at least 148 bytes to spend:
+        // so dust is a spendable txout less than
+        // 546*minRelayTxFee/1000 (in satoshis).
+        // A typical spendable segwit txout is 31 bytes big, and will
+        // need a CTxIn of at least 67 bytes to spend:
+        // so dust is a spendable txout less than
+        // 294*minRelayTxFee/1000 (in satoshis).
+        if (scriptPubKey.IsUnspendable())
+            return 0;
+
+        size_t nSize = GetSerializeSize(SER_DISK, 0);
+        int witnessversion = 0;
+        std::vector<unsigned char> witnessprogram;
+
+        if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
+            // sum the sizes of the parts of a transaction input
+            // with 75% segwit discount applied to the script size.
+            nSize += (32 + 4 + 1 + (107 / WITNESS_SCALE_FACTOR) + 4);
+        } else {
+            nSize += (32 + 4 + 1 + 107 + 4); // the 148 mentioned above
+        }
+
+        return 3 * minRelayTxFee.GetFee(nSize);
     }
 
     friend bool operator==(const CTxOut& a, const CTxOut& b)
@@ -297,7 +318,7 @@ inline void SerializeTransaction(TxType& tx, Stream& s, Operation ser_action, in
     if (ser_action.ForRead()) {
         const_cast<std::vector<CTxIn>*>(&tx.vin)->clear();
         const_cast<std::vector<CTxOut>*>(&tx.vout)->clear();
-        const_cast<CTxWitness*>(&tx.wit)->SetNull();
+        //const_cast<CTxWitness*>(&tx.wit)->SetNull();
         /* Try to read the vin. In case the dummy is there, this will be read as an empty vector. */
         READWRITE(*const_cast<std::vector<CTxIn>*>(&tx.vin));
         if (tx.vin.size() == 0 && (nVersion & SERIALIZE_TRANSACTION_WITNESS)) {
@@ -485,5 +506,8 @@ struct CMutableTransaction
 typedef std::shared_ptr<const CTransaction> CTransactionRef;
 static inline CTransactionRef MakeTransactionRef() { return std::make_shared<const CTransaction>(); }
 template <typename Tx> static inline CTransactionRef MakeTransactionRef(Tx&& txIn) { return std::make_shared<const CTransaction>(std::forward<Tx>(txIn)); }
+
+/** Compute the cost of a transaction, as defined by BIP 141 */
+int64_t GetTransactionCost(const CTransaction &tx);
 
 #endif // BITCOIN_PRIMITIVES_TRANSACTION_H

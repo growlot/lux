@@ -252,7 +252,7 @@ bool CScript::IsPayToScriptHash() const
 // followed by a data push between 2 and 32 bytes.
 bool CScript::IsWitnessProgram(int& version, std::vector<unsigned char>& program) const
 {
-    if (this->size() < 4 || this->size() > 34) {
+    if (this->size() < 4 || this->size() > 42) {
         return false;
     }
     if ((*this)[0] != OP_0 && ((*this)[0] < OP_1 || (*this)[0] > OP_16)) {

@@ -213,3 +213,8 @@ bool CTransaction::HasOpSpend() const{
     return false;
 }
 /////////////////////////////////////////////////////////////
+
+int64_t GetTransactionCost(const CTransaction& tx)
+{
+    return ::GetSerializeSize(tx, SER_NETWORK, 0) * (WITNESS_SCALE_FACTOR -1) + ::GetSerializeSize(tx, SER_NETWORK, SERIALIZE_TRANSACTION_WITNESS);
+}

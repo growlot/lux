@@ -2331,7 +2331,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount> >& vecSend, 
 
                 // Limit size
                 unsigned int nBytes = ::GetSerializeSize(*(CTransaction*)&wtxNew, SER_NETWORK, PROTOCOL_VERSION);
-                if (nBytes >= MAX_STANDARD_TX_SIZE) {
+                if (nBytes >= MAX_STANDARD_TX_SIGOPS_COST) {
                     strFailReason = _("Transaction too large");
                     return false;
                 }
@@ -3231,6 +3231,10 @@ void CWallet::AutoCombineDust()
         vector<COutput> vCoins, vRewardCoins;
         vCoins = it->second;
 
+        // We don't want the tx to be refused for being too large
+        // we use 50 bytes as a base tx size (2 output: 2*34 + overhead: 10 -> 90 to be certain)
+        unsigned int txSizeEstimate = 90;
+
         //find masternode rewards that need to be combined
         CCoinControl* coinControl = new CCoinControl();
         CAmount nTotalRewardsValue = 0;
@@ -3250,6 +3254,15 @@ void CWallet::AutoCombineDust()
             coinControl->Select(outpt);
             vRewardCoins.push_back(out);
             nTotalRewardsValue += out.Value();
+
+            // Combine to the threshold and not way above
+            if (nTotalRewardsValue > nAutoCombineThreshold * COIN)
+                break;
+
+            // Around 180 bytes per input. We use 190 to be certain
+            txSizeEstimate += 190;
+            if (txSizeEstimate * WITNESS_SCALE_FACTOR >= MAX_STANDARD_TX_SIGOPS_COST - (200 * WITNESS_SCALE_FACTOR))
+                break;
         }
 
         //if no inputs found then return

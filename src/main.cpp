@@ -92,6 +92,7 @@ bool fIsBareMultisigStd = true;
 bool fCheckBlockIndex = false;
 bool fVerifyingBlocks = false;
 unsigned int nCoinCacheSize = 5000;
+unsigned int nBytesPerSigOp = DEFAULT_BYTES_PER_SIGOP;
 bool fAlerts = DEFAULT_ALERTS;
 
 uint256 bnProofOfStakeLimit = (~uint256(0) >> 20);
@@ -548,6 +549,9 @@ CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& loc
             CBlockIndex* pindex = (*mi).second;
             if (chain.Contains(pindex))
                 return pindex;
+            if (pindex->GetAncestor(chain.Height()) == chain.Tip()) {
+                return chain.Tip();
+            }
         }
     }
     return chain.Genesis();
@@ -670,9 +674,9 @@ bool IsStandardTx(const CTransaction& tx, string& reason)
     // Extremely large transactions with lots of inputs can cost the network
     // almost as much to process as they cost the sender in fees, because
     // computing signature hashes is O(ninputs*txsize). Limiting transactions
-    // to MAX_STANDARD_TX_SIZE mitigates CPU exhaustion attacks.
-    unsigned int sz = tx.GetSerializeSize(SER_NETWORK, CTransaction::CURRENT_VERSION);
-    if (sz >= MAX_STANDARD_TX_SIZE) {
+    // to MAX_STANDARD_TX_COST mitigates CPU exhaustion attacks.
+    unsigned int sz = GetTransactionCost(tx);
+    if (sz >= MAX_STANDARD_TX_SIGOPS_COST) {
         reason = "tx-size";
         return false;
     }
@@ -804,6 +808,12 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
     return true;
 }
 
+
+int64_t GetVirtualTransactionSize(const CTransaction& tx)
+{
+    return (GetTransactionCost(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
+}
+
 unsigned int GetLegacySigOpCount(const CTransaction& tx)
 {
     unsigned int nSigOps = 0;
@@ -847,6 +857,44 @@ int GetInputAge(CTxIn& vin)
         } else
             return -1;
     }
+}
+
+int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& inputs, int flags)
+{
+    int64_t nSigOps = GetLegacySigOpCount(tx) * WITNESS_SCALE_FACTOR;
+
+    if (tx.IsCoinBase())
+        return nSigOps;
+
+    if (flags & SCRIPT_VERIFY_P2SH) {
+        nSigOps += GetP2SHSigOpCount(tx, inputs) * WITNESS_SCALE_FACTOR;
+    }
+
+    for (unsigned int i = 0; i < tx.vin.size(); i++)
+    {
+        const CTxOut &prevout = inputs.GetOutputFor(tx.vin[i]);
+        nSigOps += CountWitnessSigOps(tx.vin[i].scriptSig, prevout.scriptPubKey, i < tx.wit.vtxinwit.size() ? &tx.wit.vtxinwit[i].scriptWitness : NULL, flags);
+    }
+    return nSigOps;
+}
+
+int GetInputAgeIX(uint256 nTXHash, CTxIn& vin)
+{
+    int sigs = 0;
+    int nResult = GetInputAge(vin);
+    if (nResult < 0) nResult = 0;
+
+    if (nResult < 6) {
+        std::map<uint256, CTransactionLock>::iterator i = mapTxLocks.find(nTXHash);
+        if (i != mapTxLocks.end()) {
+            sigs = (*i).second.CountSignatures();
+        }
+        if (sigs >= INSTANTX_SIGNATURES_REQUIRED) {
+            return nInstanTXDepth + nResult;
+        }
+    }
+
+    return -1;
 }
 
 int GetIXConfirmations(uint256 nTXHash)
@@ -1155,11 +1203,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
         // itself can contain sigops MAX_TX_SIGOPS is less than
         // MAX_BLOCK_SIGOPS; we still consider this an invalid rather than
         // merely non-standard transaction.
-        unsigned int nSigOps = GetLegacySigOpCount(tx);
-        nSigOps += GetP2SHSigOpCount(tx, view);
-        if (nSigOps > MAX_TX_SIGOPS)
-            return state.DoS(0, error("AcceptToMemoryPool : too many sigops %s, %d > %d", hash.ToString(), nSigOps, MAX_TX_SIGOPS),
-                             REJECT_NONSTANDARD, "bad-txns-too-many-sigops");
+        int64_t nSigOps = GetTransactionSigOpCost(tx, view, STANDARD_SCRIPT_VERIFY_FLAGS);
 
         CAmount nValueOut = tx.GetValueOut();
         CAmount nFees = nValueIn - nValueOut;
@@ -1247,6 +1291,9 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState& state, const CTransa
 
         CTxMemPoolEntry entry(tx, nFees, GetTime(), dPriority, chainActive.Height());
         unsigned int nSize = entry.GetTxSize();
+
+        if ((nSigOps > MAX_STANDARD_TX_SIGOPS_COST) || (nBytesPerSigOp && nSigOps > nSize * WITNESS_SCALE_FACTOR / nBytesPerSigOp))
+            return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops");
 
         // Don't accept it if it can't get into a block
         // but prioritise dstx and don't check fees for it
@@ -1463,13 +1510,7 @@ bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransact
         // itself can contain sigops MAX_TX_SIGOPS is less than
         // MAX_BLOCK_SIGOPS; we still consider this an invalid rather than
         // merely non-standard transaction.
-        unsigned int nSigOps = GetLegacySigOpCount(tx);
-        nSigOps += GetP2SHSigOpCount(tx, view);
-        if (nSigOps > MAX_TX_SIGOPS)
-            return state.DoS(0,
-                             error("AcceptableInputs : too many sigops %s, %d > %d",
-                                   hash.ToString(), nSigOps, MAX_TX_SIGOPS),
-                             REJECT_NONSTANDARD, "bad-txns-too-many-sigops");
+        int64_t nSigOps = GetTransactionSigOpCost(tx, view, STANDARD_SCRIPT_VERIFY_FLAGS);
 
         CAmount nValueOut = tx.GetValueOut();
         CAmount nFees = nValueIn - nValueOut;
@@ -1477,6 +1518,9 @@ bool AcceptableInputs(CTxMemPool& pool, CValidationState& state, const CTransact
 
         CTxMemPoolEntry entry(tx, nFees, GetTime(), dPriority, chainActive.Height());
         unsigned int nSize = entry.GetTxSize();
+
+        if ((nSigOps > MAX_STANDARD_TX_SIGOPS_COST) || (nBytesPerSigOp && nSigOps > nSize * WITNESS_SCALE_FACTOR / nBytesPerSigOp))
+            return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops");
 
         // Don't accept it if it can't get into a block
         // but prioritise dstx and don't check fees for it
@@ -2384,6 +2428,21 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             }
 
             std::vector<CScriptCheck> vChecks;
+            unsigned int flags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_DERSIG;
+
+            if (GetSporkValue(SPORK_4_SEGWIT_ACTIVATION) < block.nTime) {
+                flags |= SCRIPT_VERIFY_WITNESS;
+            }
+
+            // GetTransactionSigOpCost counts 3 types of sigops:
+            // * legacy (always)
+            // * p2sh (when P2SH enabled in flags and excludes coinbase)
+            // * witness (when witness enabled in flags and excludes coinbase)
+            nSigOps += GetTransactionSigOpCost(tx, view, flags);
+            if (nSigOps > MAX_BLOCK_SIGOPS_COST)
+                return state.DoS(100, error("ConnectBlock(): too many sigops"),
+                                REJECT_INVALID, "bad-blk-sigops");
+
             if (!CheckInputs(tx, state, view, fScriptChecks, flags, false, nScriptCheckThreads ? &vChecks : NULL))
                 return false;
             control.Add(vChecks);

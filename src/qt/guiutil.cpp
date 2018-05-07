@@ -931,6 +931,9 @@ QString formatServicesStr(quint64 mask)
             case LUX_NODE_NETWORK:
                 strList.append(QObject::tr("NETWORK"));
                 break;
+             case LUX_NODE_WITNESS:
+                strList.append("WITNESS");
+                break;
             default:
                 strList.append(QString("%1[%2]").arg(QObject::tr("UNKNOWN")).arg(check));
             }

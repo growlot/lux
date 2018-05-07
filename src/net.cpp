@@ -1488,6 +1488,7 @@ bool BindListenPort(const CService& addrBind, string& strError, bool fWhiteliste
     if (!IsSelectableSocket(hListenSocket)) {
         strError = "Error: Couldn't create a listenable socket for incoming connections";
         LogPrintf("%s\n", strError);
+        CloseSocket(hListenSocket);
         return false;
     }
 
@@ -1506,6 +1507,7 @@ bool BindListenPort(const CService& addrBind, string& strError, bool fWhiteliste
     if (!SetSocketNonBlocking(hListenSocket, true)) {
         strError = strprintf("BindListenPort: Setting listening socket to non-blocking failed, error %s\n", NetworkErrorString(WSAGetLastError()));
         LogPrintf("%s\n", strError);
+        CloseSocket(hListenSocket);
         return false;
     }
 

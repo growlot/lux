@@ -551,10 +551,10 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     if (strMode != "template")
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid mode");
 
-    if (vNodes.empty())
+    if (vNodes.empty() && Params().NetworkID() != CBaseChainParams::REGTEST)
         throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "LUX is not connected!");
 
-    if (IsInitialBlockDownload())
+    if (IsInitialBlockDownload() && Params().NetworkID() != CBaseChainParams::REGTEST)
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "LUX is downloading blocks...");
 
     static unsigned int nTransactionsUpdatedLast;
@@ -667,7 +667,8 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 
         int index_in_template = i - 1;
         entry.push_back(Pair("fee", pblocktemplate->vTxFees[index_in_template]));
-        entry.push_back(Pair("sigops", pblocktemplate->vTxSigOps[index_in_template]));
+        entry.push_back(Pair("sigops", pblocktemplate->vTxSigOpsSize[index_in_template]));
+        entry.push_back(Pair("size", GetTransactionCost(tx)));
 
         transactions.push_back(entry);
     }
