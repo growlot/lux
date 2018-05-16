@@ -164,7 +164,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
     return false;
 }
 
-int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned char> >& vSolutions)
+/*int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned char> >& vSolutions)
 {
     switch (t)
     {
@@ -185,7 +185,7 @@ int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned c
             break;
     }
     return -1;
-}
+}*/
 
 bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType)
 {
