@@ -22,6 +22,9 @@
 #include <atomic>
 #include <deque>
 #include <stdint.h>
+#include <thread>
+#include <memory>
+#include <condition_variable>
 
 #ifndef WIN32
 #include <arpa/inet.h>
@@ -33,6 +36,7 @@
 
 class CAddrMan;
 class CBlockIndex;
+class CScheme;
 class CNode;
 class CTxIn;
 class CTxOut;
@@ -79,7 +83,7 @@ bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant* grantOu
 void MapPort(bool fUseUPnP);
 unsigned short GetListenPort();
 bool BindListenPort(const CService& bindAddr, std::string& strError, bool fWhitelisted = false);
-void StartNode(boost::thread_group& threadGroup);
+void StartNode(boost::thread_group& threadGroup, CScheme& scheme);
 bool StopNode();
 void SocketSendData(CNode* pnode);
 
